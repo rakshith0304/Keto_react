@@ -7,13 +7,28 @@ const KetoFriendlyChecker = () => {
   const [result, setResult] = useState('');
   const [chart, setChart] = useState(null);
 
+  // Access the API key from environment variables
+  // Make sure your .env file has REACT_APP_USDA_API_KEY=YOUR_KEY_HERE
+  const apiKey = process.env.REACT_APP_USDA_API_KEY;
+
   const handleSubmit = async (event) => {
     event.preventDefault();
-    checkKetoFriendly(foodItem);
+    if (foodItem && apiKey) { // Added a check for apiKey
+      checkKetoFriendly(foodItem);
+    } else if (!apiKey) {
+      setResult('API Key is missing. Please set REACT_APP_USDA_API_KEY in your .env file.');
+    }
   };
 
   const checkKetoFriendly = async (foodItem) => {
-    const apiKey = 'WTllHby2scTh1v4LyXUZb1WfmEYs31jbWZCFkamO';
+    // Check if the API key is available
+    if (!apiKey) {
+      console.error('USDA API Key is not set. Please check your .env file.');
+      setResult('Configuration error: API key is missing.');
+      if (chart) chart.destroy();
+      return;
+    }
+
     const apiUrl = `https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(
       foodItem
     )}&api_key=${apiKey}`;
@@ -52,12 +67,16 @@ const KetoFriendlyChecker = () => {
         (nutrient) => nutrient.nutrientName === 'Fiber, total dietary'
       );
 
-      let carbvalue = (carbs.value / servingSize) * 100;
-      console.log(carbs, carbvalue);
+      // Calculate carb value per 100g for consistent comparison
+      let carbValuePer100g = 0;
+      if (carbs && carbs.value !== undefined && servingSize > 0) {
+        carbValuePer100g = (carbs.value / servingSize) * 100;
+      }
+      console.log('Carbohydrates per 100g:', carbValuePer100g);
 
-      if (carbs && carbvalue <= 5) {
+      if (carbs && carbValuePer100g <= 5) {
         setResult(`${food.description} is Strictly keto-friendly!`);
-      } else if (carbs && carbvalue <= 10) {
+      } else if (carbs && carbValuePer100g <= 10) {
         setResult(`${food.description} is Flexibly keto-friendly!`);
       } else {
         setResult(`${food.description} is not keto-friendly.`);
